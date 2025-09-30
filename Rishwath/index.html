@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#667eea">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <title>GPS Photo Overlay</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            padding: 0;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 16px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 13px;
+        }
+
+        .content {
+            padding: 16px;
+            padding-bottom: 80px;
+        }
+
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: default;
+            transition: all 0.3s ease;
+            background: #fafafa;
+            margin-bottom: 20px;
+            touch-action: manipulation;
+        }
+
+        .upload-area:active {
+            transform: scale(0.98);
+            background: #f0f0ff;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .upload-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .upload-subtext {
+            font-size: 12px;
+            color: #666;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .preview-section {
+            display: none;
+        }
+
+        .preview-container {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        #preview {
+            width: 100%;
+            display: block;
+            max-height: 400px;
+            object-fit: contain;
+        }
+
+        .watermark-badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .watermark-badge .icon {
+            font-size: 14px;
+        }
+
+        .overlay-text {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.75);
+            color: white;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            line-height: 1.6;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            white-space: pre-wrap;
+            max-width: calc(100% - 20px);
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .overlay-text .location-line {
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .overlay-text .address-line {
+            font-size: 10px;
+            opacity: 0.9;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        input[type="text"], 
+        input[type="number"], 
+        input[type="datetime-local"],
+        select, 
+        textarea {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+            background: #f9f9f9;
+            -webkit-appearance: none;
+            appearance: none;
+            margin-top: 8px;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+            font-family: inherit;
+        }
+
+        input:focus, 
+        select:focus, 
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .preset-scroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin: 0 -16px;
+            padding: 0 16px;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .preset-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+        }
+
+        .preset-btn {
+            padding: 10px 18px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            white-space: nowrap;
+            flex-shrink: 0;
+            touch-action: manipulation;
+            position: relative;
+        }
+
+        .preset-btn:active {
+            transform: scale(0.95);
+        }
+
+        .preset-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .preset-delete {
+            margin-left: 8px;
+            color: #ff4444;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .preset-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            touch-action: manipulation;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f0f2f5;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .btn-small {
+            padding: 10px 16px;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 20px;
+            background: #f0f2f5;
+            border-radius: 10px;
+            padding: 4px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+        }
+
+        .tab.active {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .color-picker {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .color-picker input[type="color"] {
+            width: 60px;
+            height: 44px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .bottom-action {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 16px;
+            background: white;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 50;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 400px;
+            margin: 50px auto;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .address-fields {
+            background: #f9f9f9;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+
+        .address-fields label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .watermark-settings {
+            background: #f9f9f9;
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .3s;
+            border-radius: 28px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #667eea;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+
+        @media (max-width: 375px) {
+            .header h1 {
+                font-size: 18px;
+            }
+            
+            .preset-btn {
+                padding: 8px 14px;
+                font-size: 13px;
+            }
+        }
+
+        @supports (-webkit-touch-callout: none) {
+            input[type="datetime-local"] {
+                min-height: 50px;
+            }
+        }
+
+        @supports (padding: max(0px)) {
+            .header {
+                padding-top: max(20px, env(safe-area-inset-top));
+            }
+            
+            .bottom-action {
+                padding-bottom: max(16px, env(safe-area-inset-bottom));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📍 Location Photo Stamp</h1>
+            <p>Add custom location and time overlays</p>
+        </div>
+        
+        <div class="content">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📷</div>
+                <div class="upload-text">Add a photo</div>
+                <div class="upload-subtext">Choose Camera or Gallery (JPG, PNG, HEIC)</div>
+                <div style="display:flex; gap:10px; margin-top:14px; justify-content:center;">
+                    <button class="btn btn-secondary btn-small" id="openCameraBtn">📸 Camera</button>
+                    <button class="btn btn-secondary btn-small" id="openGalleryBtn">🖼️ Gallery</button>
+                </div>
+                <input type="file" id="fileInputCamera" accept="image/*,.heic,.heif" capture="environment">
+                <input type="file" id="fileInputGallery" accept="image/*,.heic,.heif">
+            </div>
+
+            <div class="preview-section" id="previewSection">
+                <div class="preview-container">
+                    <img id="preview" alt="Preview" crossorigin="anonymous">
+                    <div class="watermark-badge" id="watermarkBadge">
+                        <span class="icon">📍</span>
+                        <span id="watermarkText">Geocam</span>
+                    </div>
+                    <div class="overlay-text" id="overlayText"></div>
+                </div>
+
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab(this,'location')">Location</div>
+                    <div class="tab" onclick="switchTab(this,'watermark')">Watermark</div>
+                    <div class="tab" onclick="switchTab(this,'customize')">Customize</div>
+                </div>
+
+                <div class="tab-content active" id="location-tab">
+                    <div class="form-group">
+                        <label>📍 Quick Location Presets</label>
+                        <div class="preset-scroll">
+                            <div class="preset-buttons" id="presetButtons"></div>
+                        </div>
+                        <div class="preset-actions">
+                            <button class="btn btn-secondary btn-small" onclick="openAddPresetModal()">➕ Add Custom Preset</button>
+                            <button class="btn btn-secondary btn-small" onclick="resetPresets()">🔄 Reset to Default</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>📅 Date and Time</label>
+                        <input type="datetime-local" id="datetimeInput" placeholder="Select date and time">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Location Details</label>
+                        <input type="text" id="locationInput" placeholder="Location name (e.g., Hubballi, Karnataka, India)">
+                        
+                        <div class="address-fields">
+                            <label>Address Line 1</label>
+                            <input type="text" id="addressLine1" placeholder="Building, Street (e.g., 84v8+99j, Rn Shetty Rd)">
+                            
+                            <label>Address Line 2</label>
+                            <input type="text" id="addressLine2" placeholder="Area, City, Pincode (e.g., Chaitanya Nagar, Hubballi 580030)">
+                        </div>
+                        
+                        <input type="text" id="latitudeInput" placeholder="Latitude (e.g., 15.3647)">
+                        <input type="text" id="longitudeInput" placeholder="Longitude (e.g., 75.1240)">
+                    </div>
+
+                    <div class="form-group">
+                        <button class="btn btn-primary" id="applyLocationBtn" onclick="applyLocation()">Apply Location & Time</button>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="watermark-tab">
+                    <div class="watermark-settings">
+                        <div class="checkbox-group">
+                            <label>Show Watermark</label>
+                            <label class="switch">
+                                <input type="checkbox" id="showWatermark" checked onchange="toggleWatermark()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Watermark Text</label>
+                        <input type="text" id="watermarkTextInput" value="Geocam" placeholder="Enter watermark text">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Watermark Icon (Emoji)</label>
+                        <input type="text" id="watermarkIcon" value="📍" placeholder="Enter emoji (e.g., 📍 🌍 📸)">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Watermark Position</label>
+                        <select id="watermarkPosition">
+                            <option value="top-left" selected>Top Left</option>
+                            <option value="top-right">Top Right</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <button class="btn btn-primary" onclick="updateWatermark()">Apply Watermark Settings</button>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="customize-tab">
+                    <div class="form-group">
+                        <label>Overlay Text</label>
+                        <textarea id="overlayTextInput" placeholder="Enter text to overlay on photo"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Text Color</label>
+                        <div class="color-picker">
+                            <input type="color" id="textColorPicker" value="#ffffff">
+                            <span id="textColorValue">#ffffff</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Background Color</label>
+                        <div class="color-picker">
+                            <input type="color" id="bgColorPicker" value="#000000">
+                            <span id="bgColorValue">#000000</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Text Position</label>
+                        <select id="textPositionSelect">
+                            <option value="top-left">Top Left</option>
+                            <option value="top-center">Top Center</option>
+                            <option value="top-right">Top Right</option>
+                            <option value="bottom-left" selected>Bottom Left</option>
+                            <option value="bottom-center">Bottom Center</option>
+                            <option value="bottom-right">Bottom Right</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <button class="btn btn-primary" id="applyCustomizeBtn" onclick="updateOverlay()">Apply Customization</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-action" id="bottomAction" style="display: none;">
+            <button class="btn btn-primary" id="savePhotoBtn" onclick="savePhoto()">📥 Save Photo</button>
+        </div>
+    </div>
+
+    <!-- Add Preset Modal -->
+    <div class="modal" id="addPresetModal">
+        <div class="modal-content">
+            <div class="modal-title">➕ Add Custom Preset</div>
+            <div class="form-group">
+                <label>Preset Name (with emoji)</label>
+                <input type="text" id="presetName" placeholder="e.g., 🏠 Home">
+            </div>
+            <div class="form-group">
+                <label>Location Name</label>
+                <input type="text" id="presetLocation" placeholder="e.g., My Home, City">
+            </div>
+            <div class="form-group">
+                <label>Address Line 1</label>
+                <input type="text" id="presetAddress1" placeholder="Building, Street">
+            </div>
+            <div class="form-group">
+                <label>Address Line 2</label>
+                <input type="text" id="presetAddress2" placeholder="Area, City, Pincode">
+            </div>
+            <div class="form-group">
+                <label>Latitude</label>
+                <input type="text" id="presetLat" placeholder="e.g., 28.6139">
+            </div>
+            <div class="form-group">
+                <label>Longitude</label>
+                <input type="text" id="presetLng" placeholder="e.g., 77.2090">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeAddPresetModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="savePreset()">Save Preset</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+// Register service worker for PWA
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+}
+
+const uploadArea = document.getElementById('uploadArea');
+const fileInputCamera = document.getElementById('fileInputCamera');
+const fileInputGallery = document.getElementById('fileInputGallery');
+const previewSection = document.getElementById('previewSection');
+const preview = document.getElementById('preview');
+const overlayTextDiv = document.getElementById('overlayText');
+const overlayTextInput = document.getElementById('overlayTextInput');
+const textColorPicker = document.getElementById('textColorPicker');
+const bgColorPicker = document.getElementById('bgColorPicker');
+const textPositionSelect = document.getElementById('textPositionSelect');
+const bottomAction = document.getElementById('bottomAction');
+const datetimeInput = document.getElementById('datetimeInput');
+const watermarkBadge = document.getElementById('watermarkBadge');
+const watermarkTextDisplay = document.getElementById('watermarkText');
+const watermarkTextInput = document.getElementById('watermarkTextInput');
+const watermarkIconInput = document.getElementById('watermarkIcon');
+
+let currentImageFile = null;
+
+// Default presets with two-line addresses
+const defaultPresets = [
+    { 
+        name: '📍 New York', 
+        lat: '40.7128', 
+        lng: '-74.0060', 
+        location: 'New York, USA', 
+        address1: '350 5th Ave',
+        address2: 'New York, NY 10118, USA'
+    },
+    { 
+        name: '🇬🇧 London', 
+        lat: '51.5074', 
+        lng: '-0.1278', 
+        location: 'London, UK', 
+        address1: 'Westminster',
+        address2: 'London SW1A 1AA, United Kingdom'
+    },
+    { 
+        name: '🗾 Tokyo', 
+        lat: '35.6762', 
+        lng: '139.6503', 
+        location: 'Tokyo, Japan', 
+        address1: '1-1 Marunouchi',
+        address2: 'Chiyoda City, Tokyo 100-0005, Japan'
+    },
+    { 
+        name: '🇦🇺 Sydney', 
+        lat: '-33.8688', 
+        lng: '151.2093', 
+        location: 'Sydney, Australia', 
+        address1: 'Bennelong Point',
+        address2: 'Sydney NSW 2000, Australia'
+    },
+    { 
+        name: '🇮🇳 Delhi', 
+        lat: '28.6139', 
+        lng: '77.2090', 
+        location: 'Delhi, India', 
+        address1: 'India Gate, Rajpath',
+        address2: 'Central Secretariat, New Delhi 110001, India'
+    }
+];
+
+// Load presets from localStorage or use defaults
+function loadPresets() {
+    const saved = localStorage.getItem('locationPresets');
+    return saved ? JSON.parse(saved) : defaultPresets;
+}
+
+// Save presets to localStorage
+function savePresetsToStorage(presets) {
+    localStorage.setItem('locationPresets', JSON.stringify(presets));
+}
+
+// Render preset buttons
+function renderPresets() {
+    const presets = loadPresets();
+    const container = document.getElementById('presetButtons');
+    container.innerHTML = '';
+    
+    presets.forEach((preset, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'preset-btn';
+        btn.innerHTML = `${preset.name}<span class="preset-delete" onclick="deletePreset(${index}, event)">✕</span>`;
+        btn.onclick = (e) => {
+            if (!e.target.classList.contains('preset-delete')) {
+                setPreset(preset);
+            }
+        };
+        container.appendChild(btn);
+    });
+}
+
+// Delete preset
+function deletePreset(index, event) {
+    event.stopPropagation();
+    if (confirm('Delete this preset?')) {
+        const presets = loadPresets();
+        presets.splice(index, 1);
+        savePresetsToStorage(presets);
+        renderPresets();
+    }
+}
+
+// Reset to default presets
+function resetPresets() {
+    if (confirm('Reset all presets to default?')) {
+        savePresetsToStorage(defaultPresets);
+        renderPresets();
+    }
+}
+
+// Modal functions
+function openAddPresetModal() {
+    document.getElementById('addPresetModal').style.display = 'block';
+}
+
+function closeAddPresetModal() {
+    document.getElementById('addPresetModal').style.display = 'none';
+    document.getElementById('presetName').value = '';
+    document.getElementById('presetLocation').value = '';
+    document.getElementById('presetAddress1').value = '';
+    document.getElementById('presetAddress2').value = '';
+    document.getElementById('presetLat').value = '';
+    document.getElementById('presetLng').value = '';
+}
+
+// Save new preset
+function savePreset() {
+    const name = document.getElementById('presetName').value;
+    const location = document.getElementById('presetLocation').value;
+    const address1 = document.getElementById('presetAddress1').value;
+    const address2 = document.getElementById('presetAddress2').value;
+    const lat = document.getElementById('presetLat').value;
+    const lng = document.getElementById('presetLng').value;
+    
+    if (!name || !location || !lat || !lng) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    const presets = loadPresets();
+    presets.push({ name, lat, lng, location, address1, address2 });
+    savePresetsToStorage(presets);
+    renderPresets();
+    closeAddPresetModal();
+}
+
+// Toggle watermark visibility
+function toggleWatermark() {
+    const showWatermark = document.getElementById('showWatermark').checked;
+    watermarkBadge.style.display = showWatermark ? 'flex' : 'none';
+}
+
+// Update watermark
+function updateWatermark() {
+    const text = watermarkTextInput.value || 'Geocam';
+    const icon = watermarkIconInput.value || '📍';
+    const position = document.getElementById('watermarkPosition').value;
+    
+    watermarkTextDisplay.textContent = text;
+    watermarkBadge.querySelector('.icon').textContent = icon;
+    
+    // Reset position styles
+    watermarkBadge.style.top = '';
+    watermarkBadge.style.bottom = '';
+    watermarkBadge.style.left = '';
+    watermarkBadge.style.right = '';
+    
+    if (position === 'top-left') {
+        watermarkBadge.style.top = '8px';
+        watermarkBadge.style.left = '8px';
+    } else if (position === 'top-right') {
+        watermarkBadge.style.top = '8px';
+        watermarkBadge.style.right = '8px';
+    }
+}
+
+// Initialize presets on load
+renderPresets();
+
+// Upload controls
+document.getElementById('openCameraBtn').addEventListener('click', () => fileInputCamera.click());
+document.getElementById('openGalleryBtn').addEventListener('click', () => fileInputGallery.click());
+
+function handleSelectedFile(file) {
+    if (!file) return;
+    currentImageFile = file;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        preview.src = e.target.result;
+        preview.onload = function() {
+            previewSection.style.display = 'block';
+            bottomAction.style.display = 'block';
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            datetimeInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+            updateOverlay();
+        };
+    };
+    reader.readAsDataURL(file);
+}
+
+fileInputCamera.addEventListener('change', function() {
+    handleSelectedFile(this.files[0]);
+});
+
+fileInputGallery.addEventListener('change', function() {
+    handleSelectedFile(this.files[0]);
+});
+
+// Tab switching
+function switchTab(tabEl, tabName) {
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    tabEl.classList.add('active');
+    document.getElementById(tabName + '-tab').classList.add('active');
+}
+
+// Set preset location
+function setPreset(preset) {
+    document.getElementById('latitudeInput').value = preset.lat;
+    document.getElementById('longitudeInput').value = preset.lng;
+    document.getElementById('locationInput').value = preset.location;
+    document.getElementById('addressLine1').value = preset.address1 || '';
+    document.getElementById('addressLine2').value = preset.address2 || '';
+    
+    applyLocation();
+}
+
+// Format date time for display
+function formatDateTime(datetimeStr) {
+    if (!datetimeStr) return '';
+    
+    const date = new Date(datetimeStr);
+    const options = { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true
+    };
+    return date.toLocaleString('en-US', options);
+}
+
+// Apply location with two-line address format
+function applyLocation() {
+    const location = document.getElementById('locationInput').value || 'Unknown Location';
+    const lat = document.getElementById('latitudeInput').value || '0.0000';
+    const lng = document.getElementById('longitudeInput').value || '0.0000';
+    const address1 = document.getElementById('addressLine1').value;
+    const address2 = document.getElementById('addressLine2').value;
+    const datetime = datetimeInput.value;
+    
+    // Build formatted text similar to Google Maps style
+    let text = location;
+    
+    if (address1 || address2) {
+        if (address1) text += '\n' + address1;
+        if (address2) text += ', ' + address2;
+    }
+    
+    if (datetime) {
+        text += '\n🕐 ' + formatDateTime(datetime);
+    }
+    
+    text += '\n📍 ' + lat + ', ' + lng;
+    
+    overlayTextInput.value = text;
+    updateOverlay();
+}
+
+// Update overlay preview
+function updateOverlay() {
+    const text = overlayTextInput.value || 'Location overlay will appear here.';
+    overlayTextDiv.textContent = text;
+    overlayTextDiv.style.color = textColorPicker.value;
+    
+    const bgColor = bgColorPicker.value;
+    const r = parseInt(bgColor.substr(1,2), 16);
+    const g = parseInt(bgColor.substr(3,2), 16);
+    const b = parseInt(bgColor.substr(5,2), 16);
+    overlayTextDiv.style.background = `rgba(${r}, ${g}, ${b}, 0.75)`;
+
+    const pos = textPositionSelect.value;
+    overlayTextDiv.style.left = '';
+    overlayTextDiv.style.right = '';
+    overlayTextDiv.style.top = '';
+    overlayTextDiv.style.bottom = '';
+    overlayTextDiv.style.transform = '';
+
+    switch(pos) {
+        case 'top-left':
+            overlayTextDiv.style.top = '10px';
+            overlayTextDiv.style.left = '10px';
+            break;
+        case 'top-center':
+            overlayTextDiv.style.top = '10px';
+            overlayTextDiv.style.left = '50%';
+            overlayTextDiv.style.transform = 'translateX(-50%)';
+            break;
+        case 'top-right':
+            overlayTextDiv.style.top = '10px';
+            overlayTextDiv.style.right = '10px';
+            break;
+        case 'bottom-left':
+            overlayTextDiv.style.bottom = '10px';
+            overlayTextDiv.style.left = '10px';
+            break;
+        case 'bottom-center':
+            overlayTextDiv.style.bottom = '10px';
+            overlayTextDiv.style.left = '50%';
+            overlayTextDiv.style.transform = 'translateX(-50%)';
+            break;
+        case 'bottom-right':
+            overlayTextDiv.style.bottom = '10px';
+            overlayTextDiv.style.right = '10px';
+            break;
+    }
+}
+
+// Save photo with overlay and watermark
+function savePhoto() {
+    if (!preview.src || preview.src === '') {
+        alert('Please upload a photo first.');
+        return;
+    }
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    img.onload = function() {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        ctx.drawImage(img, 0, 0);
+
+        // Draw watermark if enabled
+        if (document.getElementById('showWatermark').checked) {
+            const watermarkText = watermarkTextInput.value || 'Geocam';
+            const watermarkIcon = watermarkIconInput.value || '📍';
+            const watermarkPos = document.getElementById('watermarkPosition').value;
+            
+            const wmFontSize = Math.max(Math.round(canvas.height / 60), 11);
+            ctx.font = `600 ${wmFontSize}px Arial`;
+            
+            const fullWatermark = `${watermarkIcon} ${watermarkText}`;
+            const wmWidth = ctx.measureText(fullWatermark).width;
+            const wmPadding = wmFontSize * 0.8;
+            const wmHeight = wmFontSize + wmPadding * 2;
+            
+            let wmX = wmPadding;
+            let wmY = wmPadding;
+            
+            if (watermarkPos === 'top-right') {
+                wmX = canvas.width - wmWidth - wmPadding * 2;
+            }
+            
+            // Draw watermark background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(wmX, wmY, wmWidth + wmPadding * 2, wmHeight);
+            
+            // Draw watermark text
+            ctx.fillStyle = 'white';
+            ctx.textBaseline = 'top';
+            ctx.fillText(fullWatermark, wmX + wmPadding, wmY + wmPadding);
+        }
+
+        // Draw location overlay text with word wrapping
+        const text = overlayTextInput.value || '';
+        if (text) {
+            const fontSize = Math.max(Math.round(canvas.height / 30), 12);
+            ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif`;
+            const lineHeight = fontSize * 1.5;
+            const padding = fontSize * 0.9;
+
+            const maxBoxWidth = Math.floor(canvas.width * 0.92);
+
+            function wrapParagraph(paragraph) {
+                const words = paragraph.split(/\s+/);
+                const wrapped = [];
+                let current = '';
+                for (let i = 0; i < words.length; i++) {
+                    const test = current ? current + ' ' + words[i] : words[i];
+                    if (ctx.measureText(test).width <= maxBoxWidth - padding * 2) {
+                        current = test;
+                    } else {
+                        if (current) wrapped.push(current);
+                        // If single long word, hard-break
+                        if (ctx.measureText(words[i]).width > maxBoxWidth - padding * 2) {
+                            let chunk = '';
+                            for (const ch of words[i]) {
+                                const testChunk = chunk + ch;
+                                if (ctx.measureText(testChunk).width <= maxBoxWidth - padding * 2) {
+                                    chunk = testChunk;
+                                } else {
+                                    wrapped.push(chunk);
+                                    chunk = ch;
+                                }
+                            }
+                            current = chunk;
+                        } else {
+                            current = words[i];
+                        }
+                    }
+                }
+                if (current) wrapped.push(current);
+                return wrapped;
+            }
+
+            const paragraphs = text.split('\n');
+            const lines = [];
+            paragraphs.forEach((p, idx) => {
+                const wrapped = wrapParagraph(p);
+                lines.push(...wrapped);
+                if (idx < paragraphs.length - 1 && wrapped.length === 0) {
+                    // preserve intentional blank line
+                    lines.push('');
+                }
+            });
+
+            let maxLineWidth = 0;
+            lines.forEach(line => {
+                const width = ctx.measureText(line).width;
+                if (width > maxLineWidth) maxLineWidth = width;
+            });
+
+            const boxWidth = Math.min(maxLineWidth + padding * 2, maxBoxWidth);
+            const boxHeight = (lineHeight * lines.length) + padding * 1.5;
+
+            const pos = textPositionSelect.value;
+            let x = padding;
+            let y = canvas.height - boxHeight - padding;
+
+            if (pos.includes('top')) y = padding;
+            if (pos.includes('center')) x = Math.max(padding, (canvas.width - boxWidth) / 2);
+            if (pos.includes('right')) x = canvas.width - boxWidth - padding;
+
+            const bgColor = bgColorPicker.value;
+            const r = parseInt(bgColor.substr(1,2), 16);
+            const g = parseInt(bgColor.substr(3,2), 16);
+            const b = parseInt(bgColor.substr(5,2), 16);
+
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.75)`;
+            ctx.fillRect(x, y, boxWidth, boxHeight);
+
+            ctx.fillStyle = textColorPicker.value;
+            ctx.textBaseline = 'top';
+
+            lines.forEach((line, i) => {
+                ctx.fillText(line, x + padding, y + padding + (i * lineHeight));
+            });
+        }
+        
+        canvas.toBlob(function(blob) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = 'photo_with_location_' + Date.now() + '.jpg';
+            link.href = url;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }, 'image/jpeg', 0.95);
+    };
+    
+    img.src = preview.src;
+}
+
+// Event listeners for live updates
+overlayTextInput.addEventListener('input', updateOverlay);
+datetimeInput.addEventListener('change', applyLocation);
+textColorPicker.addEventListener('input', () => {
+    document.getElementById('textColorValue').textContent = textColorPicker.value;
+    updateOverlay();
+});
+bgColorPicker.addEventListener('input', () => {
+    const val = bgColorPicker.value;
+    document.getElementById('bgColorValue').textContent = val;
+    updateOverlay();
+});
+textPositionSelect.addEventListener('change', updateOverlay);
+watermarkTextInput.addEventListener('input', updateWatermark);
+watermarkIconInput.addEventListener('input', updateWatermark);
+    </script>
+</body>
+</html>
